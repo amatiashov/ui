@@ -1,6 +1,12 @@
 clear
 sudo apt update
 
+apt install -y ufw
+ufw allow OpenSSH
+# Disable ICMP
+sed -i '/ufw-before-input.*icmp/s/ACCEPT/DROP/g' /etc/ufw/before.rules
+sudo ufw --force enable
+
 apt install -y sqlite3
 
 echo "⚙️ Installing Docker..."
@@ -54,6 +60,8 @@ set_panel_web_port() {
   # https://stackoverflow.com/a/2556282
   PANEL_WEB_PORT=$(shuf -i 65000-65535 -n 1)
   printf "INSERT INTO settings (key, value) VALUES ('webPort', %d);" "${PANEL_WEB_PORT}" | sqlite3 "$DB_PATH"
+
+  ufw allow $PANEL_WEB_PORT/tcp
 }
 
 set_panel_https() {
@@ -74,11 +82,15 @@ set_panel_https
 
 docker compose up -d
 
+# https://stackoverflow.com/a/8467448
+echo -e "\n\n"
+ufw allow 443/tcp
+ufw status
+echo -e "\n\n"
 
 # https://gist.github.com/loskiq/f6d9348c8cfd8573a90cafda88a57392
 openssl x509 -noout -sha256 -fingerprint -in cert/3x-ui.pem
 
-# https://stackoverflow.com/a/8467448
 echo -e "\n\n"
 echo "https://${EXTERNAL_IP}:${PANEL_WEB_PORT}/${PANEL_BASE_PATH}"
 echo "Username: ${PANEL_USERNAME}"
